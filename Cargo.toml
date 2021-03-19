@@ -1,0 +1,8 @@
+[package]
+name = "ninja-rs"
+version = "0.1.0"
+authors = ["George Kulakowski <george.kulakowski@gmail.com>"]
+edition = "2018"
+description = "Tools for working with ninja build files"
+license = "MIT/Apache-2.0"
+repository = "https://github.com/kulakowski/ninja-rs.git"
