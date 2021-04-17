@@ -5,6 +5,7 @@
 
 mod arena;
 mod ast;
+mod blob;
 mod intern;
 mod lex;
 mod parse;

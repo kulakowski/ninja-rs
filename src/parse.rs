@@ -1,5 +1,6 @@
 use crate::arena;
 use crate::ast;
+use crate::blob;
 use crate::intern;
 use crate::lex;
 use crate::lex::{DeclKind, LexError, Lexer, Token, TokenKind};
@@ -21,7 +22,7 @@ pub struct Parser<'input> {
 }
 
 impl<'input> Parser<'input> {
-    pub fn new(input: &'input [u8]) -> Parser {
+    pub fn new(input: &'input blob::View) -> Parser {
         let lexer = Lexer::new(input);
         Parser { lexer }
     }
@@ -342,7 +343,7 @@ impl<'input> Parser<'input> {
 mod tests {
     use super::*;
 
-    fn parse(input: &[u8]) -> Result<ast::File, ParseError> {
+    fn parse(input: &blob::View) -> Result<ast::File, ParseError> {
         let mut arena = intern::Table::new();
         let mut parser = Parser::new(input);
         parser.parse(&mut arena)
@@ -413,7 +414,7 @@ mod tests {
 
     #[test]
     fn invalid_build() {
-        let invalid_builds: &[&[u8]] = &[
+        let invalid_builds: &[&blob::View] = &[
             b"build output = input\n",
             b"build output : rulename :\n",
             b"build",
