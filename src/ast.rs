@@ -1,4 +1,6 @@
 use crate::arena;
+use crate::blob;
+use crate::blob::{Blob, Builder};
 use crate::lex;
 
 #[derive(Debug)]
@@ -201,17 +203,17 @@ impl Scopes {
 
 pub struct Binding {
     id: lex::Identifier,
-    value: Vec<u8>,
+    value: Blob,
 }
 
 impl Binding {
-    pub fn new(id: lex::Identifier, value: Vec<u8>) -> Binding {
+    pub fn new(id: lex::Identifier, value: Blob) -> Binding {
         Binding { id, value }
     }
 }
 
 pub struct Scope {
-    bindings: std::collections::HashMap<lex::Identifier, Vec<u8>>,
+    bindings: std::collections::HashMap<lex::Identifier, Blob>,
     parent: Option<arena::Id<Scope>>,
 }
 
@@ -242,7 +244,7 @@ impl Scope {
         }
     }
 
-    pub fn get(&self, identifier: lex::Identifier) -> Option<&[u8]> {
+    pub fn get(&self, identifier: lex::Identifier) -> Option<&blob::View> {
         self.bindings.get(&identifier).map(|v| v.as_ref())
     }
 
@@ -250,17 +252,17 @@ impl Scope {
         self.bindings.len()
     }
 
-    pub fn evaluate(&self, value: &Value) -> Vec<u8> {
-        let mut bytes = vec![];
+    pub fn evaluate(&self, value: &Value) -> Blob {
+        let mut builder = Builder::new();
         for part in value.value.parts.iter() {
             match part {
-                lex::ValuePart::Text(text) => bytes.extend(text),
+                lex::ValuePart::Text(text) => builder.extend(text),
                 lex::ValuePart::Variable(variable) => {
                     let text = self.get(*variable).unwrap_or(b"");
-                    bytes.extend(text);
+                    builder.extend(text);
                 }
             }
         }
-        bytes
+        builder.blob()
     }
 }

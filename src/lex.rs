@@ -1,3 +1,4 @@
+use crate::blob;
 use crate::intern;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
@@ -6,7 +7,7 @@ pub struct Identifier {
 }
 
 impl Identifier {
-    pub fn new(arena: &mut intern::Table, name: &[u8]) -> Identifier {
+    pub fn new(arena: &mut intern::Table, name: &blob::View) -> Identifier {
         let id = arena.insert(name);
         Identifier { id }
     }
@@ -23,7 +24,7 @@ impl Value {
 }
 
 pub enum ValuePart {
-    Text(Vec<u8>),
+    Text(blob::Blob),
     Variable(Identifier),
 }
 
@@ -99,13 +100,13 @@ pub enum LexError {
 }
 
 pub struct Lexer<'input> {
-    input: &'input [u8],
+    input: &'input blob::View,
     current: std::ops::Range<usize>,
     line: usize,
 }
 
 impl<'input> Lexer<'input> {
-    pub fn new(input: &'input [u8]) -> Lexer<'input> {
+    pub fn new(input: &'input blob::View) -> Lexer<'input> {
         Lexer {
             input,
             current: 0..0,
@@ -113,7 +114,7 @@ impl<'input> Lexer<'input> {
         }
     }
 
-    pub fn lexeme<Kind>(&self, token: Token<Kind>) -> &'input [u8] {
+    pub fn lexeme<Kind>(&self, token: Token<Kind>) -> &'input blob::View {
         &self.input[token.location.range()]
     }
 
@@ -127,12 +128,12 @@ impl<'input> Lexer<'input> {
             Some(b) => match b {
                 b' ' | b':' | b'$' => {
                     self.advance();
-                    Ok(ValuePart::Text(vec![b]))
+                    Ok(ValuePart::Text(blob::Blob::new(&[b])))
                 }
                 b'\n' => {
                     self.advance();
                     self.skip_whitespace()?;
-                    Ok(ValuePart::Text(vec![]))
+                    Ok(ValuePart::Text(blob::Blob::new(b"")))
                 }
                 b'\r' => {
                     self.advance();
@@ -140,7 +141,7 @@ impl<'input> Lexer<'input> {
                         Some(b'\n') => {
                             self.advance();
                             self.skip_whitespace()?;
-                            Ok(ValuePart::Text(vec![]))
+                            Ok(ValuePart::Text(blob::Blob::new(b"")))
                         }
                         _ => Err(LexError::UnknownToken),
                     }
@@ -166,7 +167,8 @@ impl<'input> Lexer<'input> {
                 }
                 b if is_bare_identifier(b) => {
                     self.advance();
-                    let mut variable = vec![b];
+                    let mut variable = blob::Builder::new();
+                    variable.push(b);
                     loop {
                         match self.peek() {
                             Some(b) if is_bare_identifier(b) => {
@@ -176,6 +178,7 @@ impl<'input> Lexer<'input> {
                             _ => break,
                         }
                     }
+                    let variable = variable.blob();
                     let variable = Identifier::new(arena, &variable);
                     Ok(ValuePart::Variable(variable))
                 }
@@ -200,7 +203,7 @@ impl<'input> Lexer<'input> {
 
                     b => {
                         self.advance();
-                        parts.push(ValuePart::Text(vec![b]))
+                        parts.push(ValuePart::Text(blob::Blob::new(&[b])))
                     }
                 },
             }
@@ -227,7 +230,7 @@ impl<'input> Lexer<'input> {
 
                     b => {
                         self.advance();
-                        parts.push(ValuePart::Text(vec![b]))
+                        parts.push(ValuePart::Text(blob::Blob::new(&[b])))
                     }
                 },
             }
@@ -834,7 +837,7 @@ mod tests {
     #[test]
     fn value() {
         let mut arena = intern::Table::new();
-        let inputs: &[&[u8]] = &[b"${my_variable}\n", b"$my_variable\n"];
+        let inputs: &[&blob::View] = &[b"${my_variable}\n", b"$my_variable\n"];
         for input in inputs.iter() {
             let mut lexer = Lexer::new(input);
             let value = lexer
@@ -848,7 +851,7 @@ mod tests {
     #[test]
     fn target() {
         let mut arena = intern::Table::new();
-        let inputs: &[&[u8]] = &[b"${my_variable}\n", b"$my_variable\n"];
+        let inputs: &[&blob::View] = &[b"${my_variable}\n", b"$my_variable\n"];
         for input in inputs.iter() {
             let mut lexer = Lexer::new(input);
             let value = lexer

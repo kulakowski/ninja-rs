@@ -1,9 +1,11 @@
+use crate::blob;
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Symbol(usize);
 
 pub struct Table {
-    hash: std::collections::HashMap<Box<[u8]>, Symbol>,
-    ids: Vec<Box<[u8]>>,
+    hash: std::collections::HashMap<blob::Blob, Symbol>,
+    ids: Vec<blob::Blob>,
 }
 
 impl Table {
@@ -13,23 +15,17 @@ impl Table {
         Table { hash, ids }
     }
 
-    pub fn insert(&mut self, bytes: &[u8]) -> Symbol {
+    pub fn insert(&mut self, bytes: &blob::View) -> Symbol {
         match self.hash.get(bytes) {
             Some(id) => *id,
             None => {
                 let id = Symbol(self.ids.len());
-                self.hash.insert(box_slice(bytes), id);
-                self.ids.push(box_slice(bytes));
+                self.hash.insert(blob::Blob::new(bytes), id);
+                self.ids.push(blob::Blob::new(bytes));
                 id
             }
         }
     }
-}
-
-fn box_slice(bytes: &[u8]) -> Box<[u8]> {
-    let mut vec = vec![];
-    vec.extend_from_slice(bytes);
-    vec.into_boxed_slice()
 }
 
 #[cfg(test)]
@@ -43,12 +39,12 @@ mod tests {
         let b_bytes = b"bbbbb";
         let mut ids = vec![];
         for _ in 0..10 {
-            let a = box_slice(a_bytes);
-            let a_id = arena.insert(&*a);
+            let a = blob::Blob::new(a_bytes);
+            let a_id = arena.insert(&a);
             ids.push(a_id);
 
-            let b = box_slice(b_bytes);
-            let b_id = arena.insert(&*b);
+            let b = blob::Blob::new(b_bytes);
+            let b_id = arena.insert(&b);
             ids.push(b_id);
 
             assert!(a_id != b_id);
